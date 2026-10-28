@@ -83,8 +83,8 @@
 
   .fly {
     position: absolute;
-    width: 76px; height: 76px;
-    margin: -38px 0 0 -38px;
+    width: 84px; height: 84px;
+    margin: -42px 0 0 -42px;
     border: 0; padding: 0; background: transparent; cursor: pointer;
     animation: drift var(--drift, 2s) ease-in-out infinite alternate;
   }
@@ -95,13 +95,22 @@
     animation: blink 1.1s ease-in-out infinite;
   }
   .fly img {
-    width: 100%; height: 100%; border-radius: 50%; display: block; pointer-events: none;
+    width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none;
     rotate: var(--rot, 0deg);
-    box-shadow: 0 0 0 3px var(--glow), 0 0 22px 6px rgba(244, 230, 107, 0.55);
-    animation: popin 0.25s ease-out, wiggle 0.5s ease-in-out 0.25s infinite alternate;
+    filter: drop-shadow(0 0 10px rgba(244, 230, 107, 0.6));
+    animation: popin 0.25s ease-out, wiggle 0.6s ease-in-out 0.25s infinite alternate;
   }
-  .fly.gold { width: 88px; height: 88px; margin: -44px 0 0 -44px; }
-  .fly.gold img { box-shadow: 0 0 0 4px var(--gold), 0 0 28px 10px rgba(255, 179, 71, 0.65); }
+  .fly.gold { width: 96px; height: 96px; margin: -48px 0 0 -48px; }
+  .fly.gold img { filter: drop-shadow(0 0 12px rgba(255, 179, 71, 0.8)); }
+  /* The couch photo drops from the sky instead of popping up in place. */
+  .fly.faller {
+    width: 130px; height: 150px; margin: 0 0 0 -65px; top: -160px; z-index: 2;
+    animation: fall var(--fall, 3s) linear forwards;
+  }
+  .fly.faller img {
+    filter: drop-shadow(0 0 12px rgba(232, 238, 252, 0.6));
+    animation: sway 0.7s ease-in-out infinite alternate;
+  }
   .fly.leaving img { animation: fade 0.35s forwards; }
   .fly:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; border-radius: 50%; }
   .ambient { pointer-events: none; opacity: 0.55; }
@@ -109,7 +118,9 @@
   @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.85); } }
   @keyframes drift { from { translate: -10px 6px; } to { translate: 12px -8px; } }
   @keyframes popin { from { transform: scale(0); } to { transform: scale(1); } }
-  @keyframes wiggle { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
+  @keyframes wiggle { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+  @keyframes fall { to { top: 100%; } }
+  @keyframes sway { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
   @keyframes fade { to { opacity: 0; transform: scale(0.2); } }
 
   .pop {
@@ -118,6 +129,7 @@
     animation: rise 0.7s ease-out forwards;
   }
   .pop.gold { color: var(--gold); font-size: 1.6rem; }
+  .pop.faller { color: var(--ink); font-size: 2rem; }
   @keyframes rise { to { opacity: 0; transform: translateY(-36px); } }
 
   .overlay {
@@ -131,10 +143,9 @@
   .card h2 { font-family: var(--display); font-size: 1.7rem; margin: 0; color: var(--glow); text-wrap: balance; }
   .card p { margin: 0; color: var(--muted); line-height: 1.5; }
   .card .big { font-family: var(--display); font-size: 3rem; color: var(--ink); line-height: 1; }
-  .legend { display: flex; justify-content: center; gap: 18px; font-size: 0.9rem; color: var(--ink); }
-  .legend img { width: 34px; height: 34px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-  .legend img.g { box-shadow: 0 0 0 2px var(--gold); }
-  .legend img.y { box-shadow: 0 0 0 2px var(--glow); }
+  .legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 16px; font-size: 0.9rem; color: var(--ink); }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend img { width: 40px; height: 40px; object-fit: contain; }
   button.go {
     font-family: var(--display); font-size: 1.25rem; font-weight: 700;
     background: var(--glow); color: var(--sky-top); border: 0; border-radius: 999px;
@@ -145,7 +156,7 @@
   button.go:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 
   @media (prefers-reduced-motion: reduce) {
-    .fly, .ambient::before, .fly img { animation: none; }
+    .fly:not(.faller), .ambient::before, .fly img { animation: none; }
     .pop { animation-duration: 0.01s; }
   }
 </style>
@@ -165,10 +176,11 @@
     <div class="card">
       <h2 id="title">Catch her before she flies away!</h2>
       <div class="big" id="final" hidden></div>
-      <p id="msg">Tap each face before it disappears. Turn your sound on. You have 30 seconds.</p>
+      <p id="msg">Tap each face before it disappears, and catch her when she falls from the sky. Turn your sound on. You have 30 seconds.</p>
       <div class="legend">
-        <span><img class="y" src="assets/face-side.png" alt="">1 point</span>
-        <span><img class="g" src="assets/face-glasses.png" alt="">3 points</span>
+        <span><img src="assets/head-side.png" alt="">1 point</span>
+        <span><img src="assets/head-glasses.png" alt="">3 points</span>
+        <span><img src="assets/falling.png" alt="">5 points</span>
       </div>
       <button class="go" id="go" type="button">Start</button>
     </div>
@@ -185,9 +197,9 @@
   const gordo = new Audio('assets/gordo.mp3');
   gordo.preload = 'auto';
   // Preload the faces so the first one shows up instantly.
-  ['assets/face-side.png', 'assets/face-glasses.png'].forEach(src => { new Image().src = src; });
+  ['assets/head-side.png', 'assets/head-glasses.png', 'assets/falling.png'].forEach(src => { new Image().src = src; });
 
-  let score = 0, timeLeft = ROUND, playing = false, spawnTimer = null, clockTimer = null;
+  let score = 0, timeLeft = ROUND, playing = false, spawnTimer = null, fallTimer = null, clockTimer = null;
   let best = 0;
   try { best = Number(localStorage.getItem('firefly-best')) || 0; } catch (e) {}
   bestEl.textContent = best;
@@ -227,24 +239,45 @@
     fly.className = 'fly' + (gold ? ' gold' : '');
     fly.setAttribute('aria-label', gold ? 'Sunglasses face, 3 points' : 'Face, 1 point');
     const face = document.createElement('img');
-    face.src = gold ? 'assets/face-glasses.png' : 'assets/face-side.png';
+    face.src = gold ? 'assets/head-glasses.png' : 'assets/head-side.png';
     face.alt = '';
-    // Every face pops up at a random silly angle.
-    face.style.setProperty('--rot', Math.round(Math.random() * 360 - 180) + 'deg');
+    // She glances left or right with a slight tilt, like she's looking around.
+    if (!gold && Math.random() < 0.5) fly.style.transform = 'scaleX(-1)';
+    face.style.setProperty('--rot', Math.round(Math.random() * 50 - 25) + 'deg');
     fly.appendChild(face);
     place(fly);
-    // Fireflies get quicker as the clock runs down.
+    // Faces get quicker as the clock runs down.
     const life = (gold ? 900 : 1300) + timeLeft * 30;
     const timeout = setTimeout(() => leave(fly), life);
-    fly.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      catchFly(fly, gold, timeout);
-    });
-    fly.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); catchFly(fly, gold, timeout); }
-    });
+    onTap(fly, () => catchFly(fly, gold ? 'gold' : '', timeout));
     field.insertBefore(fly, overlay);
     spawnTimer = setTimeout(spawn, 380 + Math.random() * 420);
+  }
+
+  // Every few seconds she falls from the top of the sky to the grass.
+  function spawnFaller() {
+    if (!playing) return;
+    const fly = document.createElement('button');
+    fly.type = 'button';
+    fly.className = 'fly faller';
+    fly.setAttribute('aria-label', 'Falling Poot, 5 points');
+    const img = document.createElement('img');
+    img.src = 'assets/falling.png';
+    img.alt = '';
+    fly.appendChild(img);
+    fly.style.left = (12 + Math.random() * 76) + '%';
+    fly.style.setProperty('--fall', (2.4 + Math.random() * 1.2).toFixed(2) + 's');
+    fly.addEventListener('animationend', (e) => { if (e.target === fly) fly.remove(); });
+    onTap(fly, () => catchFly(fly, 'faller'));
+    field.insertBefore(fly, overlay);
+    fallTimer = setTimeout(spawnFaller, 4000 + Math.random() * 4000);
+  }
+
+  function onTap(el, fn) {
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); }
+    });
   }
 
   function leave(fly) {
@@ -253,20 +286,22 @@
     setTimeout(() => fly.remove(), 350);
   }
 
-  function catchFly(fly, gold, timeout) {
+  function catchFly(fly, kind, timeout) {
     if (!playing || fly.disabled) return;
     clearTimeout(timeout);
-    const points = gold ? 3 : 1;
+    const points = kind === 'faller' ? 5 : kind === 'gold' ? 3 : 1;
     score += points;
     const clip = gordo.cloneNode();
-    if (gold) { clip.preservesPitch = false; clip.playbackRate = 1.3; }
+    // Chipmunk voice for the sunglasses face, deep voice for the falling one.
+    if (kind) { clip.preservesPitch = false; clip.playbackRate = kind === 'gold' ? 1.3 : 0.8; }
     clip.play().catch(() => {});
     scoreEl.textContent = score;
     const pop = document.createElement('div');
-    pop.className = 'pop' + (gold ? ' gold' : '');
+    pop.className = 'pop' + (kind ? ' ' + kind : '');
     pop.textContent = '+' + points;
-    pop.style.left = fly.style.left;
-    pop.style.top = fly.style.top;
+    const box = fly.getBoundingClientRect(), area = field.getBoundingClientRect();
+    pop.style.left = (box.left + box.width / 2 - area.left) + 'px';
+    pop.style.top = (box.top + box.height / 2 - area.top) + 'px';
     field.appendChild(pop);
     setTimeout(() => pop.remove(), 700);
     fly.remove();
@@ -278,6 +313,7 @@
     scoreEl.textContent = 0; timeEl.textContent = ROUND;
     overlay.hidden = true;
     spawn();
+    fallTimer = setTimeout(spawnFaller, 2000);
     clockTimer = setInterval(() => {
       timeLeft--;
       timeEl.textContent = timeLeft;
@@ -289,6 +325,7 @@
     playing = false;
     clearInterval(clockTimer);
     clearTimeout(spawnTimer);
+    clearTimeout(fallTimer);
     field.querySelectorAll('.fly').forEach(f => f.remove());
     const newBest = score > best;
     if (newBest) {
