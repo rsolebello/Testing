@@ -18,6 +18,7 @@
     --display: "Gluten", "Comic Sans MS", "Trebuchet MS", cursive;
     --body: "Nunito", "Segoe UI", system-ui, sans-serif;
   }
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     background: var(--sky-top);
@@ -82,25 +83,33 @@
 
   .fly {
     position: absolute;
-    width: 56px; height: 56px;
-    margin: -28px 0 0 -28px;
+    width: 76px; height: 76px;
+    margin: -38px 0 0 -38px;
     border: 0; padding: 0; background: transparent; cursor: pointer;
     animation: drift var(--drift, 2s) ease-in-out infinite alternate;
   }
-  .fly::before {
-    content: ""; position: absolute; inset: 18px; border-radius: 50%;
+  .ambient::before {
+    content: ""; position: absolute; inset: 26px; border-radius: 50%;
     background: var(--c, var(--glow));
     box-shadow: 0 0 12px 4px var(--c, var(--glow)), 0 0 34px 10px color-mix(in srgb, var(--c, var(--glow)) 45%, transparent);
     animation: blink 1.1s ease-in-out infinite;
   }
-  .fly.gold { --c: var(--gold); }
-  .fly.gold::before { inset: 14px; }
-  .fly.leaving::before { animation: fade 0.35s forwards; }
+  .fly img {
+    width: 100%; height: 100%; border-radius: 50%; display: block; pointer-events: none;
+    rotate: var(--rot, 0deg);
+    box-shadow: 0 0 0 3px var(--glow), 0 0 22px 6px rgba(244, 230, 107, 0.55);
+    animation: popin 0.25s ease-out, wiggle 0.5s ease-in-out 0.25s infinite alternate;
+  }
+  .fly.gold { width: 88px; height: 88px; margin: -44px 0 0 -44px; }
+  .fly.gold img { box-shadow: 0 0 0 4px var(--gold), 0 0 28px 10px rgba(255, 179, 71, 0.65); }
+  .fly.leaving img { animation: fade 0.35s forwards; }
   .fly:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; border-radius: 50%; }
   .ambient { pointer-events: none; opacity: 0.55; }
 
   @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.85); } }
   @keyframes drift { from { translate: -10px 6px; } to { translate: 12px -8px; } }
+  @keyframes popin { from { transform: scale(0); } to { transform: scale(1); } }
+  @keyframes wiggle { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
   @keyframes fade { to { opacity: 0; transform: scale(0.2); } }
 
   .pop {
@@ -123,7 +132,9 @@
   .card p { margin: 0; color: var(--muted); line-height: 1.5; }
   .card .big { font-family: var(--display); font-size: 3rem; color: var(--ink); line-height: 1; }
   .legend { display: flex; justify-content: center; gap: 18px; font-size: 0.9rem; color: var(--ink); }
-  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .legend img { width: 34px; height: 34px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .legend img.g { box-shadow: 0 0 0 2px var(--gold); }
+  .legend img.y { box-shadow: 0 0 0 2px var(--glow); }
   button.go {
     font-family: var(--display); font-size: 1.25rem; font-weight: 700;
     background: var(--glow); color: var(--sky-top); border: 0; border-radius: 999px;
@@ -134,7 +145,7 @@
   button.go:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 
   @media (prefers-reduced-motion: reduce) {
-    .fly, .fly::before { animation: none; }
+    .fly, .ambient::before, .fly img { animation: none; }
     .pop { animation-duration: 0.01s; }
   }
 </style>
@@ -152,12 +163,12 @@
   <div class="moon"></div>
   <div class="overlay" id="overlay">
     <div class="card">
-      <h2 id="title">Catch the fireflies!</h2>
+      <h2 id="title">Catch her before she flies away!</h2>
       <div class="big" id="final" hidden></div>
-      <p id="msg">Tap each firefly before it flies away. You have 30 seconds.</p>
+      <p id="msg">Tap each face before it disappears. Turn your sound on. You have 30 seconds.</p>
       <div class="legend">
-        <span><span class="dot" style="background:var(--glow)"></span>1 point</span>
-        <span><span class="dot" style="background:var(--gold)"></span>3 points</span>
+        <span><img class="y" src="assets/face-side.png" alt="">1 point</span>
+        <span><img class="g" src="assets/face-glasses.png" alt="">3 points</span>
       </div>
       <button class="go" id="go" type="button">Start</button>
     </div>
@@ -171,6 +182,10 @@
   const timeEl = document.getElementById('time');
   const bestEl = document.getElementById('best');
   const ROUND = 30;
+  const gordo = new Audio('assets/gordo.mp3');
+  gordo.preload = 'auto';
+  // Preload the faces so the first one shows up instantly.
+  ['assets/face-side.png', 'assets/face-glasses.png'].forEach(src => { new Image().src = src; });
 
   let score = 0, timeLeft = ROUND, playing = false, spawnTimer = null, clockTimer = null;
   let best = 0;
@@ -210,7 +225,13 @@
     fly.type = 'button';
     const gold = Math.random() < 0.12;
     fly.className = 'fly' + (gold ? ' gold' : '');
-    fly.setAttribute('aria-label', gold ? 'Golden firefly' : 'Firefly');
+    fly.setAttribute('aria-label', gold ? 'Sunglasses face, 3 points' : 'Face, 1 point');
+    const face = document.createElement('img');
+    face.src = gold ? 'assets/face-glasses.png' : 'assets/face-side.png';
+    face.alt = '';
+    // Every face pops up at a random silly angle.
+    face.style.setProperty('--rot', Math.round(Math.random() * 360 - 180) + 'deg');
+    fly.appendChild(face);
     place(fly);
     // Fireflies get quicker as the clock runs down.
     const life = (gold ? 900 : 1300) + timeLeft * 30;
@@ -237,6 +258,9 @@
     clearTimeout(timeout);
     const points = gold ? 3 : 1;
     score += points;
+    const clip = gordo.cloneNode();
+    if (gold) { clip.preservesPitch = false; clip.playbackRate = 1.3; }
+    clip.play().catch(() => {});
     scoreEl.textContent = score;
     const pop = document.createElement('div');
     pop.className = 'pop' + (gold ? ' gold' : '');
@@ -277,7 +301,7 @@
     final.hidden = false;
     final.textContent = score;
     document.getElementById('msg').textContent =
-      score === 1 ? 'You caught 1 firefly point.' : 'You caught ' + score + ' firefly points.';
+      score === 1 ? 'You scored 1 point. Gordo!' : 'You scored ' + score + ' points. Gordo!';
     document.getElementById('go').textContent = 'Play again';
     addAmbient();
     overlay.hidden = false;
