@@ -196,6 +196,8 @@
   const ROUND = 30;
   const gordo = new Audio('assets/gordo.mp3');
   gordo.preload = 'auto';
+  const whine = new Audio('assets/gordo-whine.mp3');
+  whine.preload = 'auto';
   // Preload the faces so the first one shows up instantly.
   ['assets/head-side.png', 'assets/head-glasses.png', 'assets/falling.png'].forEach(src => { new Image().src = src; });
 
@@ -291,9 +293,9 @@
     clearTimeout(timeout);
     const points = kind === 'faller' ? 5 : kind === 'gold' ? 3 : 1;
     score += points;
-    const clip = gordo.cloneNode();
-    // Chipmunk voice for the sunglasses face, deep voice for the falling one.
-    if (kind) { clip.preservesPitch = false; clip.playbackRate = kind === 'gold' ? 1.3 : 0.8; }
+    // Chipmunk voice for the sunglasses face, a pleading "Gordooo" for the falling one.
+    const clip = (kind === 'faller' ? whine : gordo).cloneNode();
+    if (kind === 'gold') { clip.preservesPitch = false; clip.playbackRate = 1.3; }
     clip.play().catch(() => {});
     scoreEl.textContent = score;
     const pop = document.createElement('div');
