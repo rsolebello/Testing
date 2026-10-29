@@ -12,6 +12,7 @@
     --grass: #0f2a24;
     --glow: #f4e66b;
     --gold: #ffb347;
+    --bad: #ff6b6b;
     --ink: #e8eefc;
     --muted: #9fb0d4;
     --panel: rgba(11, 21, 48, 0.82);
@@ -130,6 +131,28 @@
   }
   .pop.gold { color: var(--gold); font-size: 1.6rem; }
   .pop.faller { color: var(--ink); font-size: 2rem; }
+  .pop.motete { color: var(--bad); font-size: 1.6rem; white-space: nowrap; }
+  /* The napkin tumbles instead of swaying. */
+  .fly.faller.motete { width: 72px; height: 72px; margin-left: -36px; top: -90px; }
+  .fly.faller.motete img { filter: none; animation: tumble 1.4s linear infinite; }
+  @keyframes tumble { to { transform: rotate(360deg); } }
+  .potato {
+    position: absolute; left: 50%; bottom: 3%; width: 130px; translate: -50% 0;
+    pointer-events: none; z-index: 1;
+  }
+  .steam {
+    position: absolute; left: 50%; bottom: calc(3% + 74px); width: 60px; height: 40px; translate: -50% 0;
+    pointer-events: none; z-index: 1;
+  }
+  .steam span {
+    position: absolute; bottom: 0; width: 4px; height: 26px; border-radius: 4px;
+    background: linear-gradient(transparent, rgba(232, 238, 252, 0.5));
+    animation: steam 2.4s ease-in-out infinite;
+  }
+  .steam span:nth-child(1) { left: 14px; }
+  .steam span:nth-child(2) { left: 28px; animation-delay: 0.8s; }
+  .steam span:nth-child(3) { left: 42px; animation-delay: 1.6s; }
+  @keyframes steam { 0% { opacity: 0; transform: translateY(6px) scaleY(0.6); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px) scaleY(1.1); } }
   @keyframes rise { to { opacity: 0; transform: translateY(-36px); } }
 
   .overlay {
@@ -156,7 +179,7 @@
   button.go:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 
   @media (prefers-reduced-motion: reduce) {
-    .fly:not(.faller), .ambient::before, .fly img { animation: none; }
+    .fly:not(.faller), .ambient::before, .fly img, .steam span { animation: none; }
     .pop { animation-duration: 0.01s; }
   }
 </style>
@@ -172,15 +195,18 @@
 
 <main id="field" aria-label="Meadow">
   <div class="moon"></div>
+  <div class="steam" aria-hidden="true"><span></span><span></span><span></span></div>
+  <img class="potato" src="assets/potato.svg" alt="A baked potato on the hill">
   <div class="overlay" id="overlay">
     <div class="card">
       <h2 id="title">Catch her before she flies away!</h2>
       <div class="big" id="final" hidden></div>
-      <p id="msg">Tap each face before it disappears, and catch her when she falls from the sky. Turn your sound on. You have 30 seconds.</p>
+      <p id="msg">Tap each face before it disappears, and catch her when she falls from the sky. Don’t touch the motete! Turn your sound on. You have 30 seconds.</p>
       <div class="legend">
         <span><img src="assets/head-side.png" alt="">1 point</span>
         <span><img src="assets/head-glasses.png" alt="">3 points</span>
         <span><img src="assets/falling.png" alt="">5 points</span>
+        <span><img src="assets/motete.svg" alt="">Motete: lose 3</span>
       </div>
       <button class="go" id="go" type="button">Start</button>
     </div>
@@ -199,9 +225,9 @@
   const whine = new Audio('assets/gordo-whine.mp3');
   whine.preload = 'auto';
   // Preload the faces so the first one shows up instantly.
-  ['assets/head-side.png', 'assets/head-glasses.png', 'assets/falling.png'].forEach(src => { new Image().src = src; });
+  ['assets/head-side.png', 'assets/head-glasses.png', 'assets/falling.png', 'assets/motete.svg'].forEach(src => { new Image().src = src; });
 
-  let score = 0, timeLeft = ROUND, playing = false, spawnTimer = null, fallTimer = null, clockTimer = null;
+  let score = 0, timeLeft = ROUND, playing = false, spawnTimer = null, fallTimer = null, moteteTimer = null, clockTimer = null;
   let best = 0;
   try { best = Number(localStorage.getItem('firefly-best')) || 0; } catch (e) {}
   bestEl.textContent = best;
@@ -257,22 +283,41 @@
   }
 
   // Every few seconds she falls from the top of the sky to the grass.
-  function spawnFaller() {
+  function spawnFaller() { drop('faller'); fallTimer = setTimeout(spawnFaller, 4000 + Math.random() * 4000); }
+  // A used napkin (a "motete") falls too. Tapping it costs points.
+  function spawnMotete() { drop('motete'); moteteTimer = setTimeout(spawnMotete, 2500 + Math.random() * 3000); }
+
+  function drop(kind) {
     if (!playing) return;
     const fly = document.createElement('button');
     fly.type = 'button';
-    fly.className = 'fly faller';
-    fly.setAttribute('aria-label', 'Falling Poot, 5 points');
+    fly.className = 'fly faller' + (kind === 'motete' ? ' motete' : '');
+    fly.setAttribute('aria-label', kind === 'motete' ? 'Motete, lose 3 points' : 'Falling Poot, 5 points');
     const img = document.createElement('img');
-    img.src = 'assets/falling.png';
+    img.src = kind === 'motete' ? 'assets/motete.svg' : 'assets/falling.png';
     img.alt = '';
     fly.appendChild(img);
     fly.style.left = (12 + Math.random() * 76) + '%';
     fly.style.setProperty('--fall', (2.4 + Math.random() * 1.2).toFixed(2) + 's');
     fly.addEventListener('animationend', (e) => { if (e.target === fly) fly.remove(); });
-    onTap(fly, () => catchFly(fly, 'faller'));
+    onTap(fly, () => catchFly(fly, kind));
     field.insertBefore(fly, overlay);
-    fallTimer = setTimeout(spawnFaller, 4000 + Math.random() * 4000);
+  }
+
+  // A sad trombone-style "bwomp" for touching the motete.
+  let audioCtx = null;
+  function bwomp() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const t = audioCtx.currentTime, osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, t);
+      osc.frequency.exponentialRampToValueAtTime(90, t + 0.45);
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(t); osc.stop(t + 0.5);
+    } catch (e) {}
   }
 
   function onTap(el, fn) {
@@ -291,16 +336,19 @@
   function catchFly(fly, kind, timeout) {
     if (!playing || fly.disabled) return;
     clearTimeout(timeout);
-    const points = kind === 'faller' ? 5 : kind === 'gold' ? 3 : 1;
-    score += points;
+    const points = { faller: 5, gold: 3, motete: -3 }[kind] || 1;
+    score = Math.max(0, score + points);
     // Chipmunk voice for the sunglasses face, a pleading "Gordooo" for the falling one.
-    const clip = (kind === 'faller' ? whine : gordo).cloneNode();
-    if (kind === 'gold') { clip.preservesPitch = false; clip.playbackRate = 1.3; }
-    clip.play().catch(() => {});
+    if (kind === 'motete') bwomp();
+    else {
+      const clip = (kind === 'faller' ? whine : gordo).cloneNode();
+      if (kind === 'gold') { clip.preservesPitch = false; clip.playbackRate = 1.3; }
+      clip.play().catch(() => {});
+    }
     scoreEl.textContent = score;
     const pop = document.createElement('div');
     pop.className = 'pop' + (kind ? ' ' + kind : '');
-    pop.textContent = '+' + points;
+    pop.textContent = points < 0 ? points + ' motete!' : '+' + points;
     const box = fly.getBoundingClientRect(), area = field.getBoundingClientRect();
     pop.style.left = (box.left + box.width / 2 - area.left) + 'px';
     pop.style.top = (box.top + box.height / 2 - area.top) + 'px';
@@ -316,6 +364,7 @@
     overlay.hidden = true;
     spawn();
     fallTimer = setTimeout(spawnFaller, 2000);
+    moteteTimer = setTimeout(spawnMotete, 3500);
     clockTimer = setInterval(() => {
       timeLeft--;
       timeEl.textContent = timeLeft;
@@ -328,6 +377,7 @@
     clearInterval(clockTimer);
     clearTimeout(spawnTimer);
     clearTimeout(fallTimer);
+    clearTimeout(moteteTimer);
     field.querySelectorAll('.fly').forEach(f => f.remove());
     const newBest = score > best;
     if (newBest) {
